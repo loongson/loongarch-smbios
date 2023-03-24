@@ -1,0 +1,45 @@
+name: Preview
+
+on:
+  pull_request_target:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env: # $BUNDLE_GEMFILE must be set at the job level, so it is set for all steps
+      BUNDLE_GEMFILE: Gemfile
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Build
+        run: bundle exec rake book:all
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          external_repository: loongson/LoongArch-Documentation-Preview
+          publish_branch: gh-pages
+          publish_dir: ./public
+          destination_dir: ${{ github.event.pull_request.number }}
+
+      - name: Update status
+        uses: Sibz/github-status-action@v1
+        with:
+          authToken: ${{ secrets.GITHUB_TOKEN }}
+          context: 'LoongArch SMBIOS Preview / Deploy (update)'
+          description: 'Deployed, click "Details" to view ->'
+          state: 'success'
+          target_url: https://loongson.github.io/loongarch-smbios-Preview/${{ github.event.pull_request.number }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
